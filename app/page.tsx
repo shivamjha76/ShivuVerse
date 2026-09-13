@@ -4,6 +4,8 @@ import dynamic from "next/dynamic";
 import IntroOverlay from "@/components/ui/IntroOverlay";
 import ProjectDetails from "@/components/projects/ProjectDetails";
 import SkillDetails from "@/components/skills/SkillDetails";
+import CertificateDetails from "@/components/certificates/CertificateDetails";
+import AboutDetails from "@/components/about/AboutDetails";
 
 // Dynamically import World to ensure clean client-side WebGL mounting
 const World = dynamic(() => import("@/components/world/World"), {
@@ -17,6 +19,8 @@ export default function HomePage() {
       <IntroOverlay />
       <ProjectDetails />
       <SkillDetails />
+      <CertificateDetails />
+      <AboutDetails />
     </main>
   );
 }

@@ -118,6 +118,18 @@ export default function SkillTag({
         >
           <div
             onClick={handleClick}
+            onMouseEnter={() => {
+              setHovered(true);
+              if (typeof document !== "undefined") {
+                document.body.style.cursor = "pointer";
+              }
+            }}
+            onMouseLeave={() => {
+              setHovered(false);
+              if (typeof document !== "undefined") {
+                document.body.style.cursor = "auto";
+              }
+            }}
             className="pointer-events-auto flex flex-col items-center cursor-pointer group"
           >
             {/* Plaque Front Text */}

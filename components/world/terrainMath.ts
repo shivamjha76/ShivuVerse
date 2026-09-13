@@ -34,6 +34,10 @@ export function getDistToStream(worldX: number, worldZ: number): number {
 export const WORKSHOP_CENTER = { x: -7.8, z: -10.5 };
 export const GARDEN_CENTER = { x: 7.4, z: -4.2 };
 export const WATERFALL_CENTER = { x: 16.2, z: -28.2 };
+export const TREE_CENTER = { x: 4.8, z: -21.8 };
+export const GROVE_CENTER = { x: 6.2, z: -29.0 };
+export const ABOUT_CENTER = { x: -7.2, z: -35.5 };
+export const OVERLOOK_CENTER = { x: -4.2, z: -42.0 };
 
 // Get the exact ground elevation Y at any (worldX, worldZ) coordinate
 export function getTerrainHeight(worldX: number, worldZ: number): number {
@@ -49,6 +53,12 @@ export function getTerrainHeight(worldX: number, worldZ: number): number {
     Math.cos(worldX * 0.04 - worldZ * 0.065) * 2.4 +
     Math.sin(worldX * 0.14) * Math.cos(worldZ * 0.12) * 0.7;
 
+  // Natural organic micro-undulation to eliminate flat surface planes
+  const microUndulation =
+    (Math.sin(worldX * 0.18) * Math.cos(worldZ * 0.16) * 0.35 +
+      Math.sin(worldX * 0.32 + worldZ * 0.22) * 0.16) *
+    pathFactor;
+
   // Outer framing ridges
   const outerRidges =
     Math.pow(Math.min(Math.abs(worldX) / (TERRAIN_SIZE * 0.38), 1), 2.2) * 6.5;
@@ -58,6 +68,7 @@ export function getTerrainHeight(worldX: number, worldZ: number): number {
 
   let elevation =
     rollingHills * Math.pow(pathFactor, 1.4) +
+    microUndulation +
     outerRidges +
     pathSubtle * (1 - pathFactor);
 
@@ -89,6 +100,30 @@ export function getTerrainHeight(worldX: number, worldZ: number): number {
   if (distToGarden < 3.8) {
     const blend = Math.pow(Math.cos((distToGarden / 3.8) * (Math.PI / 2)), 2);
     const plateauHeight = 0.85; // Stable clearing height
+    elevation = elevation * (1 - blend) + plateauHeight * blend;
+  }
+
+  // Smooth plateau for Certificate Grove clearing
+  const distToGrove = Math.hypot(worldX - GROVE_CENTER.x, worldZ - GROVE_CENTER.z);
+  if (distToGrove < 4.2) {
+    const blend = Math.pow(Math.cos((distToGrove / 4.2) * (Math.PI / 2)), 2);
+    const plateauHeight = 1.1; // Stable grove height
+    elevation = elevation * (1 - blend) + plateauHeight * blend;
+  }
+
+  // Smooth plateau for About Me camp clearing
+  const distToAbout = Math.hypot(worldX - ABOUT_CENTER.x, worldZ - ABOUT_CENTER.z);
+  if (distToAbout < 4.5) {
+    const blend = Math.pow(Math.cos((distToAbout / 4.5) * (Math.PI / 2)), 2);
+    const plateauHeight = 1.25; // Stable camp clearing height
+    elevation = elevation * (1 - blend) + plateauHeight * blend;
+  }
+
+  // Smooth plateau for Final Contact Overlook
+  const distToOverlook = Math.hypot(worldX - OVERLOOK_CENTER.x, worldZ - OVERLOOK_CENTER.z);
+  if (distToOverlook < 4.5) {
+    const blend = Math.pow(Math.cos((distToOverlook / 4.5) * (Math.PI / 2)), 2);
+    const plateauHeight = 1.35; // Stable overlook deck height
     elevation = elevation * (1 - blend) + plateauHeight * blend;
   }
 

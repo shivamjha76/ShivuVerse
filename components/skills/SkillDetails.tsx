@@ -12,19 +12,40 @@ export default function SkillDetails() {
     return SKILLS.find((s) => s.id === selectedSkillId) || null;
   }, [selectedSkillId]);
 
+  const currentIndex = SKILLS.findIndex((s) => s.id === selectedSkillId);
+  const prevSkill = currentIndex > 0 ? SKILLS[currentIndex - 1] : null;
+  const nextSkill = currentIndex < SKILLS.length - 1 ? SKILLS[currentIndex + 1] : null;
+
   const handleClose = () => {
     selectSkill(null);
   };
 
-  // Close on Escape key
+  // Close on Escape key & Arrow navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && selectedSkillId) {
+      if (!selectedSkillId) return;
+      if (e.key === "Escape") {
         handleClose();
+      } else if (e.key === "ArrowLeft" && prevSkill) {
+        selectSkill(prevSkill.id);
+      } else if (e.key === "ArrowRight" && nextSkill) {
+        selectSkill(nextSkill.id);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedSkillId, prevSkill, nextSkill]);
+
+  // Lock body scroll while modal is active
+  useEffect(() => {
+    if (selectedSkillId) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, [selectedSkillId]);
 
   if (!selectedSkill) return null;
@@ -110,7 +131,38 @@ export default function SkillDetails() {
         </div>
 
         {/* Action Button Row */}
-        <div className="mt-6 flex items-center justify-end border-t border-neutral-800/80 pt-4">
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-neutral-800/80 pt-4">
+          {/* Previous / Next Skill Switcher */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={!prevSkill}
+              onClick={() => prevSkill && selectSkill(prevSkill.id)}
+              className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${
+                prevSkill
+                  ? "border-neutral-700 text-neutral-300 hover:bg-neutral-800 hover:text-white cursor-pointer"
+                  : "border-neutral-800 text-neutral-600 cursor-not-allowed"
+              }`}
+            >
+              &larr; Prev
+            </button>
+            <span className="text-[11px] text-neutral-500 font-mono">
+              {currentIndex + 1} / {SKILLS.length}
+            </span>
+            <button
+              type="button"
+              disabled={!nextSkill}
+              onClick={() => nextSkill && selectSkill(nextSkill.id)}
+              className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${
+                nextSkill
+                  ? "border-neutral-700 text-neutral-300 hover:bg-neutral-800 hover:text-white cursor-pointer"
+                  : "border-neutral-800 text-neutral-600 cursor-not-allowed"
+              }`}
+            >
+              Next &rarr;
+            </button>
+          </div>
+
           <button
             type="button"
             onClick={handleClose}

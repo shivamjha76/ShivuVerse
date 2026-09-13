@@ -1,6 +1,15 @@
 import { useSyncExternalStore } from "react";
 
 export type IntroPhase = "loading" | "playing" | "completed";
+export type QualityLevel = "high" | "medium" | "low";
+export type WorldArea =
+  | "Main Garden"
+  | "Social Garden"
+  | "Project Workshop"
+  | "Knowledge Tree"
+  | "Certificate Grove"
+  | "About Me"
+  | "Final Contact";
 
 export interface ExplorationState {
   isLoaded: boolean;
@@ -9,9 +18,24 @@ export interface ExplorationState {
   hasInteracted: boolean; // Set true when user scrolls or clicks
   selectedProjectId: string | null; // Currently inspected project modal
   selectedSkillId: string | null; // Currently inspected skill modal
+  selectedCertificateId: string | null; // Currently inspected certificate modal
+  isAboutOpen: boolean; // About Me modal overlay
+  isContactOpen: boolean; // Final Contact modal overlay
+  quality: QualityLevel;
+  currentArea: WorldArea;
 }
 
 type Listener = () => void;
+
+export function getAreaFromProgress(progress: number): WorldArea {
+  if (progress < 0.16) return "Main Garden";
+  if (progress < 0.35) return "Social Garden";
+  if (progress < 0.54) return "Project Workshop";
+  if (progress < 0.70) return "Knowledge Tree";
+  if (progress < 0.83) return "Certificate Grove";
+  if (progress < 0.94) return "About Me";
+  return "Final Contact";
+}
 
 let state: ExplorationState = {
   isLoaded: false,
@@ -20,6 +44,11 @@ let state: ExplorationState = {
   hasInteracted: false,
   selectedProjectId: null,
   selectedSkillId: null,
+  selectedCertificateId: null,
+  isAboutOpen: false,
+  isContactOpen: false,
+  quality: "high",
+  currentArea: "Main Garden",
 };
 
 const listeners = new Set<Listener>();
@@ -67,7 +96,7 @@ export function completeIntro() {
 export function skipIntro() {
   explorationStore.setState(() => ({
     introPhase: "completed",
-    hasInteracted: true,
+    hasInteracted: false,
   }));
 }
 
@@ -76,6 +105,7 @@ export function updateScrollProgress(delta: number) {
     const nextProgress = Math.max(0, Math.min(1, prev.scrollProgress + delta));
     return {
       scrollProgress: nextProgress,
+      currentArea: getAreaFromProgress(nextProgress),
       hasInteracted: true,
       introPhase: "completed",
     };
@@ -83,8 +113,10 @@ export function updateScrollProgress(delta: number) {
 }
 
 export function scrollToProgress(targetProgress: number) {
+  const nextProgress = Math.max(0, Math.min(1, targetProgress));
   explorationStore.setState(() => ({
-    scrollProgress: Math.max(0, Math.min(1, targetProgress)),
+    scrollProgress: nextProgress,
+    currentArea: getAreaFromProgress(nextProgress),
     hasInteracted: true,
     introPhase: "completed",
   }));
@@ -101,5 +133,32 @@ export function selectSkill(id: string | null) {
   explorationStore.setState(() => ({
     selectedSkillId: id,
     hasInteracted: true,
+  }));
+}
+
+export function selectCertificate(id: string | null) {
+  explorationStore.setState(() => ({
+    selectedCertificateId: id,
+    hasInteracted: true,
+  }));
+}
+
+export function setAboutOpen(open: boolean) {
+  explorationStore.setState(() => ({
+    isAboutOpen: open,
+    hasInteracted: true,
+  }));
+}
+
+export function setContactOpen(open: boolean) {
+  explorationStore.setState(() => ({
+    isContactOpen: open,
+    hasInteracted: true,
+  }));
+}
+
+export function setQuality(quality: QualityLevel) {
+  explorationStore.setState(() => ({
+    quality,
   }));
 }

@@ -1,15 +1,18 @@
 "use client";
 
-import React, { useMemo, useRef } from "react";
+import React, { useMemo, useRef, useEffect } from "react";
 import * as THREE from "three";
 import { getPathX, getStreamX, getTerrainHeight } from "./terrainMath";
 
 export default function Rocks() {
-  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const boulderMeshRef = useRef<THREE.InstancedMesh>(null);
+  const cragMeshRef = useRef<THREE.InstancedMesh>(null);
+  const shelfMeshRef = useRef<THREE.InstancedMesh>(null);
 
-  // Curated natural rock placements with organic clustering and varied forms
-  const rockTransforms = useMemo(() => {
-    const matrices: THREE.Matrix4[] = [];
+  const { boulderTransforms, cragTransforms, shelfTransforms } = useMemo(() => {
+    const boulders: THREE.Matrix4[] = [];
+    const crags: THREE.Matrix4[] = [];
+    const shelves: THREE.Matrix4[] = [];
 
     let seed = 76543;
     const rnd = () => {
@@ -17,116 +20,175 @@ export default function Rocks() {
       return seed / 233280;
     };
 
-    const addRock = (
+    const composeMatrix = (
       x: number,
       z: number,
       baseScale: number,
-      scaleAxes = [1, 1, 1],
-      rotOffset = [0, 0, 0]
+      scaleAxes: [number, number, number],
+      rotOffset: [number, number, number] = [0, 0, 0]
     ) => {
-      // Submerge stone partially into ground for natural bedding
-      const y = getTerrainHeight(x, z) + scaleAxes[1] * baseScale * 0.22;
-      const matrix = new THREE.Matrix4();
+      const y = getTerrainHeight(x, z) + scaleAxes[1] * baseScale * 0.18;
+      const m = new THREE.Matrix4();
       const sx = baseScale * scaleAxes[0] * (0.85 + rnd() * 0.3);
       const sy = baseScale * scaleAxes[1] * (0.85 + rnd() * 0.3);
       const sz = baseScale * scaleAxes[2] * (0.85 + rnd() * 0.3);
 
       const rot = new THREE.Euler(
-        rotOffset[0] + (rnd() - 0.5) * 0.35,
+        rotOffset[0] + (rnd() - 0.5) * 0.3,
         rotOffset[1] + rnd() * Math.PI * 2,
-        rotOffset[2] + (rnd() - 0.5) * 0.35
+        rotOffset[2] + (rnd() - 0.5) * 0.3
       );
 
-      matrix.compose(
+      m.compose(
         new THREE.Vector3(x, y, z),
         new THREE.Quaternion().setFromEuler(rot),
         new THREE.Vector3(sx, sy, sz)
       );
-      matrices.push(matrix);
+      return m;
     };
 
-    // 1. Stream Bank Rocks: Natural clusters of 1 anchor stone + 1-2 smaller river pebbles
-    for (let z = 20; z >= -24; z -= 3.6) {
+    // 1. Stream Bank Rocks (Smooth River Boulders + Small Pebbles)
+    for (let z = 22; z >= -26; z -= 2.8) {
       const sx = getStreamX(z);
       // Left river bank
-      const leftDist = 1.35 + rnd() * 0.5;
-      addRock(sx - leftDist, z, 0.6 + rnd() * 0.4, [1.3, 0.55, 1.1]);
-      if (rnd() > 0.4) {
-        addRock(sx - leftDist - 0.5, z + 0.4, 0.35 + rnd() * 0.2, [1.1, 0.45, 1.0]);
+      const leftDist = 1.35 + rnd() * 0.6;
+      boulders.push(composeMatrix(sx - leftDist, z, 0.75 + rnd() * 0.45, [1.4, 0.7, 1.15]));
+      if (rnd() > 0.35) {
+        boulders.push(composeMatrix(sx - leftDist - 0.45, z + 0.3, 0.4 + rnd() * 0.25, [1.1, 0.5, 1.0]));
       }
 
       // Right river bank
-      const rightDist = 1.4 + rnd() * 0.5;
-      addRock(sx + rightDist, z + 0.3, 0.65 + rnd() * 0.45, [1.2, 0.6, 1.15]);
-      if (rnd() > 0.5) {
-        addRock(sx + rightDist + 0.45, z - 0.4, 0.32 + rnd() * 0.22, [1.0, 0.4, 0.95]);
-      }
-    }
-
-    // 2. Waterfall Basin: Natural rocky gorge encircling the plunge pool
-    const waterfallAngles = 12;
-    for (let i = 0; i < waterfallAngles; i++) {
-      const angle = (i / waterfallAngles) * Math.PI * 2;
-      const dist = 3.0 + rnd() * 2.0;
-      const rx = 16.2 + Math.cos(angle) * dist;
-      const rz = -28.2 + Math.sin(angle) * dist;
-      addRock(rx, rz, 1.0 + rnd() * 1.1, [1.25, 0.9, 1.3]);
-    }
-
-    // 3. Pathway Border Accents: Grounded stones nestled into grass at turning points
-    const pathStoneZones = [14, 8, 2, -5, -13, -21, -29, -37];
-    pathStoneZones.forEach((z) => {
-      const px = getPathX(z);
-      const side = Math.sin(z * 0.7) > 0 ? 1 : -1;
-      const rx = px + side * (1.8 + rnd() * 0.6);
-      addRock(rx, z, 0.5 + rnd() * 0.4, [1.2, 0.65, 1.05]);
+      const rightDist = 1.45 + rnd() * 0.6;
+      boulders.push(composeMatrix(sx + rightDist, z + 0.2, 0.8 + rnd() * 0.5, [1.3, 0.75, 1.2]));
       if (rnd() > 0.4) {
-        addRock(rx + side * 0.4, z + 0.3, 0.3 + rnd() * 0.2, [1.0, 0.5, 0.9]);
+        boulders.push(composeMatrix(sx + rightDist + 0.5, z - 0.3, 0.38 + rnd() * 0.25, [1.0, 0.45, 0.95]));
+      }
+    }
+
+    // 2. Waterfall Cliff Formations (Massive Angular Crags & Layered Shelves)
+    const waterfallCliffs = [
+      { x: 14.5, z: -29.5, s: 2.4, axes: [1.8, 1.4, 1.6] as [number, number, number] },
+      { x: 18.2, z: -32.5, s: 3.2, axes: [2.2, 1.8, 1.9] as [number, number, number] },
+      { x: 21.0, z: -27.0, s: 2.8, axes: [1.9, 1.5, 1.7] as [number, number, number] },
+      { x: 12.8, z: -32.0, s: 2.0, axes: [1.6, 1.2, 1.4] as [number, number, number] },
+      { x: 19.5, z: -25.5, s: 1.8, axes: [1.5, 1.1, 1.3] as [number, number, number] },
+      { x: 23.5, z: -34.0, s: 2.9, axes: [2.0, 1.6, 1.8] as [number, number, number] },
+    ];
+
+    waterfallCliffs.forEach((c) => {
+      crags.push(composeMatrix(c.x, c.z, c.s, c.axes));
+      shelves.push(composeMatrix(c.x + 0.4, c.z - 0.5, c.s * 0.75, [1.6, 0.4, 1.4]));
+    });
+
+    // 3. Path-Side Granite Rocks (Guiding path curves naturally)
+    for (let z = 16; z >= -40; z -= 4.2) {
+      const px = getPathX(z);
+      const side = rnd() > 0.5 ? 1 : -1;
+      const dist = 1.9 + rnd() * 0.9;
+      const rx = px + side * dist;
+
+      if (rnd() > 0.3) {
+        crags.push(composeMatrix(rx, z, 0.65 + rnd() * 0.45, [1.3, 0.85, 1.1]));
+      } else {
+        shelves.push(composeMatrix(rx, z, 0.6 + rnd() * 0.35, [1.5, 0.45, 1.2]));
+      }
+    }
+
+    // 4. Hillside & Tree Footing Boulders
+    const anchorSpots = [
+      { x: -8.0, z: 11.2, s: 1.1 },
+      { x: 9.2, z: 13.5, s: 1.2 },
+      { x: -12.0, z: 3.5, s: 1.4 },
+      { x: -14.2, z: -6.5, s: 1.5 },
+      { x: 11.0, z: -7.5, s: 1.3 },
+      { x: -6.8, z: -26.5, s: 1.2 },
+      { x: 4.2, z: -22.5, s: 1.3 },
+      { x: -4.8, z: -36.5, s: 1.4 },
+    ];
+
+    anchorSpots.forEach((spot) => {
+      boulders.push(composeMatrix(spot.x, spot.z, spot.s, [1.3, 0.8, 1.2]));
+      if (rnd() > 0.4) {
+        crags.push(composeMatrix(spot.x + 0.5, spot.z - 0.4, spot.s * 0.65, [1.1, 0.7, 1.0]));
       }
     });
 
-    // 4. Hillside & Tree Bedrock Formations (grounding the western hills and trees)
-    const hillBoulders = [
-      { x: -9.5, z: 9.5, s: 1.1 },
-      { x: -13.0, z: 1.5, s: 1.5 },
-      { x: -16.5, z: -9.0, s: 1.9 },
-      { x: -19.0, z: -23.0, s: 2.3 },
-      { x: 14.0, z: 11.0, s: 1.3 },
-      { x: 16.5, z: -3.0, s: 1.6 },
-      { x: 19.5, z: -13.0, s: 2.0 },
-      { x: 4.8, z: -31.0, s: 1.2 },
-    ];
-    hillBoulders.forEach((b) => {
-      addRock(b.x, b.z, b.s, [1.25, 0.8, 1.1]);
-    });
-
-    return matrices;
+    return {
+      boulderTransforms: boulders,
+      cragTransforms: crags,
+      shelfTransforms: shelves,
+    };
   }, []);
 
-  React.useEffect(() => {
-    if (!meshRef.current) return;
-    rockTransforms.forEach((mat, i) => {
-      meshRef.current?.setMatrixAt(i, mat);
-    });
-    meshRef.current.instanceMatrix.needsUpdate = true;
-    meshRef.current.computeBoundingSphere();
-  }, [rockTransforms]);
+  useEffect(() => {
+    if (boulderMeshRef.current) {
+      boulderTransforms.forEach((m, i) => boulderMeshRef.current?.setMatrixAt(i, m));
+      boulderMeshRef.current.instanceMatrix.needsUpdate = true;
+      boulderMeshRef.current.computeBoundingSphere();
+    }
+    if (cragMeshRef.current) {
+      cragTransforms.forEach((m, i) => cragMeshRef.current?.setMatrixAt(i, m));
+      cragMeshRef.current.instanceMatrix.needsUpdate = true;
+      cragMeshRef.current.computeBoundingSphere();
+    }
+    if (shelfMeshRef.current) {
+      shelfTransforms.forEach((m, i) => shelfMeshRef.current?.setMatrixAt(i, m));
+      shelfMeshRef.current.instanceMatrix.needsUpdate = true;
+      shelfMeshRef.current.computeBoundingSphere();
+    }
+  }, [boulderTransforms, cragTransforms, shelfTransforms]);
 
   return (
-    <instancedMesh
-      ref={meshRef}
-      args={[undefined, undefined, rockTransforms.length]}
-      castShadow
-      receiveShadow
-      frustumCulled={false}
-    >
-      <dodecahedronGeometry args={[1, 1]} />
-      <meshStandardMaterial
-        color="#696359"
-        roughness={0.88}
-        metalness={0.04}
-        flatShading
-      />
-    </instancedMesh>
+    <group>
+      {/* 1. River-Smoothed Boulders (Stream & Meadow Anchors) */}
+      <instancedMesh
+        ref={boulderMeshRef}
+        args={[undefined, undefined, boulderTransforms.length]}
+        receiveShadow
+        castShadow
+        frustumCulled={false}
+      >
+        <sphereGeometry args={[1, 10, 8]} />
+        <meshStandardMaterial
+          color="#696359"
+          roughness={0.86}
+          metalness={0.04}
+          flatShading={false}
+        />
+      </instancedMesh>
+
+      {/* 2. Angular Granite Crags (Cliffs & Outcroppings) */}
+      <instancedMesh
+        ref={cragMeshRef}
+        args={[undefined, undefined, cragTransforms.length]}
+        receiveShadow
+        castShadow
+        frustumCulled={false}
+      >
+        <dodecahedronGeometry args={[1, 1]} />
+        <meshStandardMaterial
+          color="#575147"
+          roughness={0.88}
+          metalness={0.05}
+          flatShading={true}
+        />
+      </instancedMesh>
+
+      {/* 3. Layered Stone Shelves (Waterfall & Pathway Steps) */}
+      <instancedMesh
+        ref={shelfMeshRef}
+        args={[undefined, undefined, shelfTransforms.length]}
+        receiveShadow
+        castShadow
+        frustumCulled={false}
+      >
+        <boxGeometry args={[1.4, 0.45, 1.2]} />
+        <meshStandardMaterial
+          color="#756d61"
+          roughness={0.84}
+          metalness={0.03}
+        />
+      </instancedMesh>
+    </group>
   );
 }

@@ -4,6 +4,7 @@ import React, { useMemo } from "react";
 import * as THREE from "three";
 import { SOCIAL_PROFILES } from "@/data/socials";
 import SocialNode from "./SocialNode";
+import LandmarkSign from "../world/LandmarkSign";
 import { getTerrainHeight } from "../world/terrainMath";
 
 export default function SocialGarden() {
@@ -38,6 +39,15 @@ export default function SocialGarden() {
 
   return (
     <group>
+      {/* 0. Landmark Sign near path verge */}
+      <LandmarkSign
+        position={[4.8, -2.8]}
+        rotationY={0.55}
+        title="Social Garden"
+        subtitle="Profiles & Connections"
+        accentColor="#38bdf8"
+      />
+
       {/* 1. Garden Stone Terrace Plinth (3D foundation prevents slope clipping) */}
       <mesh
         position={[gardenCenter.x, centerGroundY - 0.05, gardenCenter.z]}

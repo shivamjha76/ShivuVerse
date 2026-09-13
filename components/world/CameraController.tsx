@@ -50,7 +50,7 @@ export default function CameraController() {
     if (introPhase === "playing") {
       introTween.current = gsap.to(introAnim.current, {
         progress: 1,
-        duration: 4.6,
+        duration: 6.5,
         ease: "power2.inOut",
         onComplete: () => {
           completeIntro();
@@ -68,27 +68,35 @@ export default function CameraController() {
     };
   }, [introPhase]);
 
-  // Window scroll, touch & keyboard listeners
+  // Window scroll, touch & keyboard listeners with active modal guards
   useEffect(() => {
-    const handleWheel = (e: WheelEvent) => {
-      // Guard: do not scroll 3D world when project modal is open
-      if (explorationStore.getState().selectedProjectId) return;
+    const isModalActive = () => {
+      const s = explorationStore.getState();
+      return Boolean(
+        s.selectedProjectId ||
+          s.selectedSkillId ||
+          s.selectedCertificateId ||
+          s.isAboutOpen ||
+          s.isContactOpen
+      );
+    };
 
-      // Normalize wheel delta across browsers (Firefox line mode vs Chrome pixel mode)
+    const handleWheel = (e: WheelEvent) => {
+      if (isModalActive()) return;
+
       let deltaY = e.deltaY;
       if (e.deltaMode === 1) {
-        deltaY *= 33.3; // DOM_DELTA_LINE: normalize lines to pixels
+        deltaY *= 33.3; // normalize DOM_DELTA_LINE
       } else if (e.deltaMode === 2) {
-        deltaY *= 600; // DOM_DELTA_PAGE
+        deltaY *= 600; // normalize DOM_DELTA_PAGE
       }
 
-      // Clamp max delta per notch to avoid wild momentum jumps
       const clampedDelta = Math.max(-120, Math.min(120, deltaY));
-      updateScrollProgress(clampedDelta * 0.00065);
+      updateScrollProgress(clampedDelta * 0.00055);
     };
 
     const handleTouchStart = (e: TouchEvent) => {
-      if (explorationStore.getState().selectedProjectId) return;
+      if (isModalActive()) return;
       if (e.touches.length > 0) {
         touchStartY.current = e.touches[0].clientY;
         isTouchActive.current = true;
@@ -96,10 +104,10 @@ export default function CameraController() {
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (explorationStore.getState().selectedProjectId) return;
+      if (isModalActive()) return;
       if (touchStartY.current !== null && e.touches.length > 0) {
         const currentY = e.touches[0].clientY;
-        const delta = (touchStartY.current - currentY) * 0.0022;
+        const delta = (touchStartY.current - currentY) * 0.0018;
         touchStartY.current = currentY;
         updateScrollProgress(delta);
       }
@@ -110,14 +118,23 @@ export default function CameraController() {
       isTouchActive.current = false;
     };
 
-    // Keyboard navigation (Arrow keys, W/S, PageUp/PageDown, Home/End)
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (explorationStore.getState().selectedProjectId) return;
+      if (isModalActive()) return;
 
-      if (e.key === "ArrowDown" || e.key === "PageDown" || e.key === "s" || e.key === "S") {
-        updateScrollProgress(0.04);
-      } else if (e.key === "ArrowUp" || e.key === "PageUp" || e.key === "w" || e.key === "W") {
-        updateScrollProgress(-0.04);
+      if (
+        e.key === "ArrowDown" ||
+        e.key === "PageDown" ||
+        e.key === "s" ||
+        e.key === "S"
+      ) {
+        updateScrollProgress(0.035);
+      } else if (
+        e.key === "ArrowUp" ||
+        e.key === "PageUp" ||
+        e.key === "w" ||
+        e.key === "W"
+      ) {
+        updateScrollProgress(-0.035);
       } else if (e.key === "Home") {
         updateScrollProgress(-1.0);
       } else if (e.key === "End") {
@@ -158,7 +175,6 @@ export default function CameraController() {
     if (introPhase === "playing") {
       const p = introAnim.current.progress;
 
-      // Start: lower and farther back on the path
       const startX = 0.0;
       const startY = 2.2;
       const startZ = 19.5;
@@ -166,7 +182,6 @@ export default function CameraController() {
       const startTgtY = 0.9;
       const startTgtZ = 12.0;
 
-      // End coordinates seamlessly match initial exploration coordinates
       desiredCamPos.set(
         THREE.MathUtils.lerp(startX, initBaseX, p),
         THREE.MathUtils.lerp(startY, initBaseY, p),
@@ -186,31 +201,31 @@ export default function CameraController() {
       camera.lookAt(currentTarget);
     } else {
       // Exploration Mode
-      // 1. Smoothly interpolate scroll progress for luxurious momentum
+      // 1. Smoothly interpolate scroll progress for momentum
       lerpedScroll.current = THREE.MathUtils.lerp(
         lerpedScroll.current,
         scrollProgress,
         0.05
       );
 
-      // 2. Calculate base camera position along the winding path
-      // Range: Z from 14.8 (entrance) down to -11.2 (deep valley overlook)
-      const baseZ = 14.8 - lerpedScroll.current * 26.0;
+      // 2. Full journey travel along the winding path from Entrance to Sunset Overlook
+      // baseZ spans from 14.8 down to -42.0 (distance: 56.8 units)
+      const baseZ = 14.8 - lerpedScroll.current * 56.8;
       const baseX = getPathX(baseZ) + 0.18;
       const groundY = getTerrainHeight(baseX, baseZ);
       const baseY = groundY + 2.75; // Consistent natural eye-level clearance
 
-      // 3. Calculate lookAt target looking forward down the pathway
+      // 3. Look forward down the path
       const targetZ = baseZ - 18.0;
-      const targetX = getPathX(targetZ) + 1.15; // Soft angle toward stream & waterfall
+      const targetX = getPathX(targetZ) + 1.0;
       const targetY = getTerrainHeight(targetX, targetZ) + 1.75;
 
-      // 4. Smooth mouse parallax (gently dampened, no motion sickness, decays when touch ends)
+      // 4. Smooth mouse parallax
       const { pointer } = state;
-      const targetMouseX = isTouchActive.current ? 0 : pointer.x * 0.45;
-      const targetMouseY = isTouchActive.current ? 0 : pointer.y * 0.28;
-      const targetLookX = isTouchActive.current ? 0 : pointer.x * 2.2;
-      const targetLookY = isTouchActive.current ? 0 : pointer.y * 1.25;
+      const targetMouseX = isTouchActive.current ? 0 : pointer.x * 0.42;
+      const targetMouseY = isTouchActive.current ? 0 : pointer.y * 0.25;
+      const targetLookX = isTouchActive.current ? 0 : pointer.x * 2.0;
+      const targetLookY = isTouchActive.current ? 0 : pointer.y * 1.15;
 
       mouseOffset.x = THREE.MathUtils.lerp(mouseOffset.x, targetMouseX, 0.05);
       mouseOffset.y = THREE.MathUtils.lerp(mouseOffset.y, targetMouseY, 0.05);
@@ -232,7 +247,6 @@ export default function CameraController() {
         targetZ
       );
 
-      // Smoothly interpolate current camera to desired (eliminates teleport when skipping intro)
       currentCamPos.lerp(desiredCamPos, 0.08);
       currentTarget.lerp(desiredTarget, 0.08);
 

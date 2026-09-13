@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useRef, useEffect } from "react";
 import * as THREE from "three";
 import { getPathX, getTerrainHeight } from "./terrainMath";
+import LandmarkSign from "./LandmarkSign";
 
 export default function Pathway() {
   // Generate an organic ribbon mesh with natural edges for the walked garden path
@@ -29,7 +30,7 @@ export default function Pathway() {
       const centerJitter = Math.sin(z * 0.22) * 0.18;
       const centerX = rawCenterX + centerJitter;
 
-      // Organic width variation along the path (wider near foreground & junctions, narrower in bends)
+      // Organic width variation along the path
       const currentWidth =
         2.2 + Math.sin(z * 0.16) * 0.45 + Math.cos(z * 0.07) * 0.25;
       const halfWidth = currentWidth * 0.5;
@@ -91,9 +92,9 @@ export default function Pathway() {
     geom.setIndex(indices);
     geom.computeVertexNormals();
 
-    // Naturally scattered stone pavers
+    // Naturally scattered stone pavers along the main path
     const stones: THREE.Matrix4[] = [];
-    const stoneCount = 75;
+    const stoneCount = 85;
     for (let s = 0; s < stoneCount; s++) {
       const z = zStart - 1.5 - (s / stoneCount) * (zStart - zEnd - 3);
       const centerX = getPathX(z);
@@ -116,12 +117,43 @@ export default function Pathway() {
       stones.push(matrix);
     }
 
+    // Branch offshoot stepping stones to clearings
+    const branches = [
+      // To Social Garden [7.4, -4.2]
+      { from: [getPathX(-4.2), -4.2], to: [5.2, -4.2], steps: 5 },
+      // To Project Workshop [-7.8, -10.5]
+      { from: [getPathX(-10.5), -10.5], to: [-5.6, -10.5], steps: 5 },
+      // To Knowledge Tree [4.8, -21.8]
+      { from: [getPathX(-21.8), -21.8], to: [3.4, -21.8], steps: 4 },
+      // To Certificate Grove [6.2, -29.0]
+      { from: [getPathX(-29.0), -29.0], to: [4.4, -29.0], steps: 4 },
+      // To About Me Camp [-7.2, -35.5]
+      { from: [getPathX(-35.5), -35.5], to: [-5.4, -35.5], steps: 4 },
+    ];
+
+    branches.forEach((b) => {
+      for (let st = 1; st <= b.steps; st++) {
+        const t = st / (b.steps + 1);
+        const bx = b.from[0] + (b.to[0] - b.from[0]) * t;
+        const bz = b.from[1] + (b.to[1] - b.from[1]) * t;
+        const by = getTerrainHeight(bx, bz) + 0.04;
+
+        const m = new THREE.Matrix4();
+        m.compose(
+          new THREE.Vector3(bx, by, bz),
+          new THREE.Quaternion().setFromEuler(new THREE.Euler(0, t * 1.5, 0)),
+          new THREE.Vector3(0.42, 0.06, 0.4)
+        );
+        stones.push(m);
+      }
+    });
+
     return { ribbonGeometry: geom, stoneTransforms: stones };
   }, []);
 
-  const stoneMeshRef = React.useRef<THREE.InstancedMesh>(null);
+  const stoneMeshRef = useRef<THREE.InstancedMesh>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!stoneMeshRef.current) return;
     stoneTransforms.forEach((matrix, idx) => {
       stoneMeshRef.current?.setMatrixAt(idx, matrix);
@@ -132,7 +164,16 @@ export default function Pathway() {
 
   return (
     <group>
-      {/* Naturally walked garden pathway bed */}
+      {/* 1. Main Garden Entrance Landmark Sign */}
+      <LandmarkSign
+        position={[1.6, 15.2]}
+        rotationY={0.15}
+        title="Main Garden"
+        subtitle="ShivuVerse Sanctuary"
+        accentColor="#fbbf24"
+      />
+
+      {/* 2. Naturally walked garden pathway bed */}
       <mesh geometry={ribbonGeometry} receiveShadow>
         <meshStandardMaterial
           vertexColors
@@ -141,7 +182,7 @@ export default function Pathway() {
         />
       </mesh>
 
-      {/* Embedded weathered limestone flagstones */}
+      {/* 3. Embedded weathered limestone flagstones & branch stepping stones */}
       <instancedMesh
         ref={stoneMeshRef}
         args={[undefined, undefined, stoneTransforms.length]}
@@ -156,6 +197,43 @@ export default function Pathway() {
           metalness={0.03}
         />
       </instancedMesh>
+
+      {/* 4. Subtle Trail Guide Lanterns along key curves */}
+      {[
+        { z: 6.5, side: 1 },
+        { z: -16.0, side: -1 },
+        { z: -25.2, side: 1 },
+        { z: -32.8, side: -1 },
+      ].map((pt, i) => {
+        const px = getPathX(pt.z) + pt.side * 1.6;
+        const py = getTerrainHeight(px, pt.z);
+        return (
+          <group key={i} position={[px, py, pt.z]}>
+            {/* Small Timber Post */}
+            <mesh position={[0, 0.35, 0]} castShadow receiveShadow>
+              <cylinderGeometry args={[0.04, 0.05, 0.7, 6]} />
+              <meshStandardMaterial color="#423428" roughness={0.85} />
+            </mesh>
+            {/* Hanging Lantern */}
+            <mesh position={[0, 0.72, 0]} castShadow>
+              <cylinderGeometry args={[0.05, 0.04, 0.12, 6]} />
+              <meshStandardMaterial
+                color="#ffb347"
+                emissive="#ff8800"
+                emissiveIntensity={0.8}
+                roughness={0.3}
+              />
+            </mesh>
+            <pointLight
+              position={[0, 0.75, 0]}
+              color="#ffaa44"
+              intensity={0.65}
+              distance={3.6}
+              decay={2}
+            />
+          </group>
+        );
+      })}
     </group>
   );
 }

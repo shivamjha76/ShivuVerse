@@ -9,35 +9,52 @@ export default function Grass() {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const timeUniform = useMemo(() => ({ uTime: { value: 0 } }), []);
 
-  // Crossed double-quad grass blade geometry
+  // 3-way crossed curved blade clump geometry with root-to-tip vertex colors
   const grassGeometry = useMemo(() => {
-    const p1 = new THREE.PlaneGeometry(0.32, 0.42);
-    p1.translate(0, 0.21, 0);
+    const bladeW = 0.32;
+    const bladeH = 0.46;
+    const p1 = new THREE.PlaneGeometry(bladeW, bladeH, 1, 3);
+    p1.translate(0, bladeH * 0.5, 0);
 
     const p2 = p1.clone();
-    p2.rotateY(Math.PI / 2);
+    p2.rotateY(Math.PI / 3);
 
+    const p3 = p1.clone();
+    p3.rotateY((Math.PI * 2) / 3);
+
+    // Merge planes into single buffer
     const merged = new THREE.BufferGeometry();
     const pos1 = p1.attributes.position.array;
     const pos2 = p2.attributes.position.array;
-    const uvs1 = p1.attributes.uv.array;
-    const uvs2 = p2.attributes.uv.array;
+    const pos3 = p3.attributes.position.array;
 
-    const mergedPos = new Float32Array(pos1.length + pos2.length);
+    const totalVerts = (pos1.length + pos2.length + pos3.length) / 3;
+    const mergedPos = new Float32Array(pos1.length * 3);
     mergedPos.set(pos1, 0);
     mergedPos.set(pos2, pos1.length);
+    mergedPos.set(pos3, pos1.length * 2);
 
-    const mergedUvs = new Float32Array(uvs1.length + uvs2.length);
-    mergedUvs.set(uvs1, 0);
-    mergedUvs.set(uvs2, uvs1.length);
+    const colors = new Float32Array(totalVerts * 3);
+    const rootColor = new THREE.Color("#2d5225"); // Deep rich meadow green
+    const tipColor = new THREE.Color("#7bb84c");  // Warm sunlit golden-green
+    const tempCol = new THREE.Color();
+
+    for (let i = 0; i < totalVerts; i++) {
+      const y = mergedPos[i * 3 + 1];
+      const normY = Math.min(Math.max(y / bladeH, 0), 1);
+      tempCol.copy(rootColor).lerp(tipColor, normY * normY);
+      colors[i * 3] = tempCol.r;
+      colors[i * 3 + 1] = tempCol.g;
+      colors[i * 3 + 2] = tempCol.b;
+    }
 
     merged.setAttribute("position", new THREE.BufferAttribute(mergedPos, 3));
-    merged.setAttribute("uv", new THREE.BufferAttribute(mergedUvs, 2));
+    merged.setAttribute("color", new THREE.BufferAttribute(colors, 3));
     merged.computeVertexNormals();
     return merged;
   }, []);
 
-  // Targeted natural distribution: clusters along path borders and rock footings
+  // Natural organic distribution: dense path edging, rock footings, meadow pockets
   const { count, transforms } = useMemo(() => {
     const matrices: THREE.Matrix4[] = [];
 
@@ -48,50 +65,60 @@ export default function Grass() {
     };
 
     const addTuft = (x: number, z: number, scale = 1.0) => {
-      if (getDistToStream(x, z) < 1.7 && z > -28) return;
+      if (getDistToStream(x, z) < 1.6 && z > -28) return;
       const y = getTerrainHeight(x, z);
 
-      const matrix = new THREE.Matrix4();
-      const s = scale * (0.82 + rnd() * 0.4);
+      const m = new THREE.Matrix4();
+      const s = scale * (0.8 + rnd() * 0.45);
       const rotY = rnd() * Math.PI * 2;
 
-      matrix.compose(
+      m.compose(
         new THREE.Vector3(x, y, z),
         new THREE.Quaternion().setFromEuler(new THREE.Euler(0, rotY, 0)),
-        new THREE.Vector3(s, s, s)
+        new THREE.Vector3(s, s * (0.85 + rnd() * 0.3), s)
       );
-      matrices.push(matrix);
+      matrices.push(m);
     };
 
-    // 1. Pathway Edges (soft organic transitional border)
-    for (let z = 15; z >= -36; z -= 1.8) {
+    // 1. Pathway Edges (Continuous lush border lining the path)
+    for (let z = 16; z >= -42; z -= 1.1) {
       const px = getPathX(z);
-      // Left border tufts
-      addTuft(px - 1.6 - rnd() * 0.6, z + (rnd() - 0.5) * 0.5, 0.95);
-      if (rnd() > 0.4) {
-        addTuft(px - 2.1 - rnd() * 0.7, z + (rnd() - 0.5) * 0.7, 1.1);
+      // Left border tufts (varied distance from path center)
+      addTuft(px - 1.45 - rnd() * 0.5, z + (rnd() - 0.5) * 0.4, 0.95);
+      if (rnd() > 0.3) {
+        addTuft(px - 1.85 - rnd() * 0.6, z + (rnd() - 0.5) * 0.6, 1.1);
       }
+
       // Right border tufts
-      addTuft(px + 1.6 + rnd() * 0.6, z + (rnd() - 0.5) * 0.5, 0.95);
-      if (rnd() > 0.4) {
-        addTuft(px + 2.1 + rnd() * 0.7, z + (rnd() - 0.5) * 0.7, 1.1);
+      addTuft(px + 1.45 + rnd() * 0.5, z + (rnd() - 0.5) * 0.4, 0.95);
+      if (rnd() > 0.3) {
+        addTuft(px + 1.85 + rnd() * 0.6, z + (rnd() - 0.5) * 0.6, 1.1);
       }
     }
 
-    // 2. Curated Meadow Pockets
-    const meadowAreas = [
-      { cx: -5.5, cz: 7.0, count: 20, rad: 2.8 },
-      { cx: -7.0, cz: -5.5, count: 24, rad: 3.2 },
-      { cx: 6.8, cz: 3.8, count: 18, rad: 2.6 },
-      { cx: 4.5, cz: -13.0, count: 22, rad: 3.0 },
-      { cx: 13.0, cz: -20.0, count: 20, rad: 2.8 },
+    // 2. Stream Bank Fringe
+    for (let z = 22; z >= -25; z -= 1.8) {
+      const sx = getPathX(z) + 7.5; // Near stream
+      addTuft(sx + (rnd() - 0.5) * 2.0, z + (rnd() - 0.5) * 0.8, 1.15);
+      addTuft(sx + (rnd() - 0.5) * 2.5, z + (rnd() - 0.5) * 0.8, 1.0);
+    }
+
+    // 3. Meadow Clearings & Tree Bases
+    const meadowClusters = [
+      { x: -6.5, z: 8.5, count: 20 },
+      { x: 8.5, z: 10.0, count: 20 },
+      { x: -11.0, z: -4.0, count: 25 },
+      { x: 5.5, z: -8.0, count: 22 },
+      { x: -5.0, z: -18.0, count: 24 },
+      { x: 7.5, z: -25.0, count: 26 },
+      { x: -5.5, z: -32.0, count: 22 },
     ];
 
-    meadowAreas.forEach((area) => {
-      for (let i = 0; i < area.count; i++) {
-        const r = rnd() * area.rad;
-        const theta = rnd() * Math.PI * 2;
-        addTuft(area.cx + Math.cos(theta) * r, area.cz + Math.sin(theta) * r, 0.95);
+    meadowClusters.forEach((c) => {
+      for (let i = 0; i < c.count; i++) {
+        const angle = rnd() * Math.PI * 2;
+        const rad = rnd() * 2.8;
+        addTuft(c.x + Math.cos(angle) * rad, c.z + Math.sin(angle) * rad, 1.0 + rnd() * 0.35);
       }
     });
 
@@ -100,13 +127,14 @@ export default function Grass() {
 
   React.useEffect(() => {
     if (!meshRef.current) return;
-    transforms.forEach((mat, i) => {
-      meshRef.current?.setMatrixAt(i, mat);
+    transforms.forEach((matrix, idx) => {
+      meshRef.current?.setMatrixAt(idx, matrix);
     });
     meshRef.current.instanceMatrix.needsUpdate = true;
     meshRef.current.computeBoundingSphere();
   }, [transforms]);
 
+  // Gentle wind swaying vertex shader modification
   const onBeforeCompile = useMemo(() => {
     return (shader: THREE.WebGLProgramParametersWithUniforms) => {
       shader.uniforms.uTime = timeUniform.uTime;
@@ -118,10 +146,12 @@ export default function Grass() {
         "#include <begin_vertex>",
         `
         #include <begin_vertex>
-        float grassWind = sin(uTime * 2.0 + instanceMatrix[3][0] * 1.1 + instanceMatrix[3][2] * 0.8);
-        float bend = max(transformed.y * 1.8, 0.0);
-        transformed.x += grassWind * 0.065 * bend;
-        transformed.z += cos(uTime * 1.5 + instanceMatrix[3][2] * 0.6) * 0.04 * bend;
+        // Natural wind sway affecting the upper half of grass blades
+        float heightFactor = clamp(position.y / 0.45, 0.0, 1.0);
+        float sway = sin(uTime * 2.2 + transformed.x * 1.5 + transformed.z * 1.2) * 0.055 * heightFactor;
+        float flutter = cos(uTime * 3.4 + transformed.z * 2.5) * 0.025 * heightFactor;
+        transformed.x += sway + flutter;
+        transformed.z += sway * 0.6;
         `
       );
     };
@@ -139,8 +169,8 @@ export default function Grass() {
       frustumCulled={false}
     >
       <meshStandardMaterial
-        color="#598444"
-        roughness={0.82}
+        vertexColors
+        roughness={0.78}
         metalness={0.02}
         side={THREE.DoubleSide}
         onBeforeCompile={onBeforeCompile}

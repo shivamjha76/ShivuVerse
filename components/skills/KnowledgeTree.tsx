@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { SKILLS, Skill, TreeBranchId } from "@/data/skills";
 import SkillTag from "./SkillTag";
+import LandmarkSign from "../world/LandmarkSign";
 import { getTerrainHeight } from "../world/terrainMath";
 
 export default function KnowledgeTree() {
@@ -163,8 +164,18 @@ export default function KnowledgeTree() {
   });
 
   return (
-    <group position={[treeRoot.x, rootGroundY, treeRoot.z]}>
-      {/* 1. Ancient Massive Trunk with Buttress Root Base */}
+    <group>
+      {/* Landmark Sign near path approach */}
+      <LandmarkSign
+        position={[2.6, -19.5]}
+        rotationY={0.45}
+        title="Knowledge Tree"
+        subtitle="Skills & Technologies"
+        accentColor="#4ade80"
+      />
+
+      <group position={[treeRoot.x, rootGroundY, treeRoot.z]}>
+        {/* 1. Ancient Massive Trunk with Buttress Root Base */}
       {/* Main Trunk Body */}
       <mesh position={[0, 2.5, 0]} castShadow receiveShadow>
         <cylinderGeometry args={[0.95, 1.55, 5.2, 10]} />
@@ -311,6 +322,7 @@ export default function KnowledgeTree() {
           timingOffset={timingOffset}
         />
       ))}
+      </group>
     </group>
   );
 }

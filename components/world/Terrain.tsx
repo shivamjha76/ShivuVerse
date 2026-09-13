@@ -26,13 +26,14 @@ export default function Terrain({
     const count = pos.count;
     const colors = new Float32Array(count * 3);
 
-    // Richer, natural color palette: vibrant greens, warm sandy path, weathered granite
-    const colorPath = new THREE.Color("#9e907d"); // Lighter warm sandy loam/gravel
-    const colorStreamBed = new THREE.Color("#3d4944"); // Moist river silt and dark stone
-    const colorRockCliff = new THREE.Color("#67625a"); // Weathered warm granite
-    const colorMeadowLow = new THREE.Color("#446c3d"); // Lush deep meadow green
-    const colorMeadowMid = new THREE.Color("#568249"); // Vibrant sunlit field grass
-    const colorRidgeHigh = new THREE.Color("#739857"); // Warm golden-green hill crest
+    // Natural stylized fantasy color palette: lush greens, sunlit fields, warm loam, rock cliffs
+    const colorPath = new THREE.Color("#9e8f7a");       // Warm sandy loam/gravel path
+    const colorPathMoss = new THREE.Color("#6e825a");   // Mossy transitional earth
+    const colorStreamBed = new THREE.Color("#35423c");  // Moist dark silt and river stone
+    const colorRockCliff = new THREE.Color("#5e584f");  // Weathered granite rock
+    const colorMeadowDeep = new THREE.Color("#385e32"); // Lush deep meadow hollows
+    const colorMeadowMid = new THREE.Color("#4d783d");  // Vibrant rolling pasture green
+    const colorRidgeHigh = new THREE.Color("#6b9452");  // Golden-green sunlit hill crests
     const tempColor = new THREE.Color();
 
     for (let i = 0; i < count; i++) {
@@ -58,7 +59,8 @@ export default function Terrain({
 
       const pathX = getPathX(worldZ);
       const distToPath = Math.abs(worldX - pathX);
-      const pathFactor = Math.min(Math.max((distToPath - 3.2) / 8.0, 0), 1);
+      const pathFactor = Math.min(Math.max((distToPath - 2.8) / 7.5, 0), 1);
+      const pathEdgeFactor = Math.min(Math.max((distToPath - 2.0) / 2.2, 0), 1);
 
       const distToStream = getDistToStream(worldX, worldZ);
 
@@ -67,35 +69,40 @@ export default function Terrain({
       const normalizedHeight = Math.min(Math.max((z + 1.0) / 9.0, 0), 1);
 
       // Base meadow gradient: deep meadow in lowlands, warm golden-green on ridges
-      if (normalizedHeight < 0.45) {
-        tempColor.copy(colorMeadowLow).lerp(colorMeadowMid, normalizedHeight / 0.45);
+      if (normalizedHeight < 0.42) {
+        tempColor.copy(colorMeadowDeep).lerp(colorMeadowMid, normalizedHeight / 0.42);
       } else {
         tempColor
           .copy(colorMeadowMid)
-          .lerp(colorRidgeHigh, (normalizedHeight - 0.45) / 0.55);
+          .lerp(colorRidgeHigh, (normalizedHeight - 0.42) / 0.58);
       }
 
       // Exposed rocky soil on steep slopes
-      if (slope < 0.8) {
-        tempColor.lerp(colorRockCliff, (0.8 - slope) * 1.5);
+      if (slope < 0.82) {
+        tempColor.lerp(colorRockCliff, (0.82 - slope) * 1.6);
       }
 
       // Waterfall cliff coloration
       const distToCliff = Math.hypot(worldX - 17.5, worldZ - (-31.5));
       if (distToCliff < 13) {
         const cliffFactor = 1 - distToCliff / 13;
-        tempColor.lerp(colorRockCliff, cliffFactor * 0.9);
+        tempColor.lerp(colorRockCliff, cliffFactor * 0.92);
       }
 
-      // Stream bed moist dark stone with smooth entry taper
+      // Stream bed moist dark stone
       if (distToStream < 3.8 && worldZ > -30) {
         const zBlend = Math.min(Math.max((worldZ - (-30)) / 3.5, 0), 1);
         const streamFactor = (1 - distToStream / 3.8) * zBlend;
-        tempColor.lerp(colorStreamBed, streamFactor * 0.9);
+        tempColor.lerp(colorStreamBed, streamFactor * 0.92);
       }
 
-      // Blend lighter, warm earthy path
-      tempColor.lerp(colorPath, (1 - pathFactor) * 0.86);
+      // Transitional mossy earth around path
+      if (pathFactor < 0.8) {
+        tempColor.lerp(colorPathMoss, (0.8 - pathFactor) * 0.7);
+      }
+
+      // Warm gravelly path bed
+      tempColor.lerp(colorPath, (1 - pathEdgeFactor) * 0.88);
 
       colors[i * 3] = tempColor.r;
       colors[i * 3 + 1] = tempColor.g;
@@ -115,7 +122,7 @@ export default function Terrain({
     >
       <meshStandardMaterial
         vertexColors
-        roughness={0.86}
+        roughness={0.84}
         metalness={0.02}
         flatShading={false}
       />

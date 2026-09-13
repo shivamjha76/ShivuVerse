@@ -4,6 +4,7 @@ import React, { useMemo } from "react";
 import * as THREE from "three";
 import { PROJECTS } from "@/data/projects";
 import ProjectDisplay from "./ProjectDisplay";
+import LandmarkSign from "../world/LandmarkSign";
 import { getTerrainHeight } from "../world/terrainMath";
 
 export default function ProjectWorkshop() {
@@ -34,6 +35,15 @@ export default function ProjectWorkshop() {
 
   return (
     <group>
+      {/* 0. Landmark Sign near path verge */}
+      <LandmarkSign
+        position={[-4.5, -9.0]}
+        rotationY={-0.45}
+        title="Project Workshop"
+        subtitle="Featured Systems & Apps"
+        accentColor="#fbbf24"
+      />
+
       {/* Solid Foundation Base Skirt (prevents ground clipping on slopes) */}
       <mesh
         position={[workshopCenter.x, centerGroundY - 0.15, workshopCenter.z]}
